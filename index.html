@@ -40,6 +40,8 @@ iframe {
 .splash img { width: 260px; max-width: 70vw; height: auto; }
 .splash .label { color: #2c3e50; font-family: -apple-system, system-ui, sans-serif; font-weight: 500; font-size: 16px; }
 .splash .spinner { width: 28px; height: 28px; border: 3px solid rgba(44,62,80,0.2); border-top-color: #2c3e50; border-radius: 50%; animation: spin 0.9s linear infinite; }
+.splash .hint { color: #2c3e50; font-family: -apple-system, system-ui, sans-serif; font-size: 14px; opacity: 0; transition: opacity 0.4s ease; padding: 8px 20px; border: 1px solid #2c3e50; border-radius: 20px; }
+.splash .hint.show { opacity: 1; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -48,7 +50,8 @@ iframe {
 <div class="splash" id="splash">
   <img src="logo.png" alt="Karla Choueri Corban — Corretora de Imóveis — CRECI 081.329-F">
   <div class="label">Vistoria de Imóveis</div>
-  <div class="spinner"></div>
+  <div class="spinner" id="splashSpinner"></div>
+  <div class="hint" id="splashHint">Toque para começar</div>
 </div>
 
 <iframe id="app"
@@ -58,14 +61,30 @@ iframe {
 ></iframe>
 
 <script>
-// Esconde splash quando o iframe carregar
 const splash = document.getElementById('splash');
 const app = document.getElementById('app');
-app.addEventListener('load', () => setTimeout(() => splash.classList.add('hide'), 300));
-// Timeout de segurança: 8s
-setTimeout(() => splash.classList.add('hide'), 8000);
+const hint = document.getElementById('splashHint');
 
-// Service worker — registra pra Chrome considerar PWA instalável
+function esconderSplash() {
+  splash.classList.add('hide');
+  // Foco no iframe pra acordar o render dele (Chrome Android segura cross-origin)
+  try { app.focus(); app.contentWindow && app.contentWindow.focus(); } catch (_) {}
+}
+
+// Some quando o iframe terminar de carregar
+app.addEventListener('load', () => setTimeout(esconderSplash, 200));
+
+// Toque/clique no splash dispensa imediatamente — fallback pra quando o navegador
+// throttla o setTimeout em PWA mobile e segura o render do iframe cross-origin
+splash.addEventListener('click', esconderSplash);
+splash.addEventListener('touchstart', esconderSplash, { passive: true });
+
+// Mostra hint "Toque para começar" depois de 3s caso ainda esteja visível
+setTimeout(() => { if (!splash.classList.contains('hide')) hint.classList.add('show'); }, 3000);
+
+// Fallback de segurança
+setTimeout(esconderSplash, 8000);
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(err => console.log('SW falhou:', err));
